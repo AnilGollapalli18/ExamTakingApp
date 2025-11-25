@@ -1,7 +1,7 @@
 import axios from 'axios';
-import { collection, getDocs, query, where, addDoc, serverTimestamp, orderBy } from "firebase/firestore";
+import { collection, getDocs, query, where, addDoc, serverTimestamp, orderBy, deleteDoc, doc } from "firebase/firestore";
 import { db, auth } from "./firebase";
-import { GoogleAuthProvider, signInWithPopup, sendSignInLinkToEmail } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup, sendSignInLinkToEmail, deleteUser } from "firebase/auth";
 
 let _questionsCache = null;
 let _questionsPromise = null;
@@ -201,6 +201,91 @@ export async function getExamHistory(uid = null, limit = 100) {
   } catch (err) {
     console.error("getExamHistory failed:", err);
     return [];
+  }
+}
+
+/**
+ * Delete all user data (best-effort): examResults docs, user docs, and attempt to delete Firebase Auth user.
+ * Accepts either a uid or email. If email is provided but uid is not, tries to look up the uid from `users`.
+ * Note: deleting the Firebase Auth account from the client requires a recent login; in that case a
+ *       `auth/requires-recent-login` error will be thrown and should be handled by the caller.
+ */
+export async function deleteAccount(uidOrEmail) {
+  try {
+    let uid = uidOrEmail || null;
+    let email = null;
+    // if a string contains an @ assume it's an email
+    if (typeof uidOrEmail === 'string' && uidOrEmail.includes('@')) {
+      email = uidOrEmail;
+      uid = null;
+    }
+
+    // if we only have an email, try to resolve the uid from users collection
+    if (!uid && email) {
+      try {
+        const q = query(collection(db, 'users'), where('email', '==', email));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const d = snap.docs[0];
+          const data = d.data();
+          uid = data?.uid || d.id || null;
+        }
+      } catch (e) {
+        console.warn('deleteAccount: could not resolve uid from email', e);
+      }
+    }
+
+    if (!uid && !email) throw new Error('deleteAccount requires uid or email');
+
+    // delete examResults for this uid
+    try {
+      if (uid) {
+        const q = query(collection(db, 'examResults'), where('uid', '==', uid));
+        const snap = await getDocs(q);
+        for (const d of snap.docs) {
+          await deleteDoc(doc(db, 'examResults', d.id));
+        }
+      }
+    } catch (e) {
+      console.warn('deleteAccount: failed deleting examResults', e);
+    }
+
+    // delete user documents by uid and/or email
+    try {
+      if (uid) {
+        const q = query(collection(db, 'users'), where('uid', '==', uid));
+        const snap = await getDocs(q);
+        for (const d of snap.docs) await deleteDoc(doc(db, 'users', d.id));
+      }
+      if (email) {
+        const q2 = query(collection(db, 'users'), where('email', '==', email));
+        const snap2 = await getDocs(q2);
+        for (const d of snap2.docs) await deleteDoc(doc(db, 'users', d.id));
+      }
+    } catch (e) {
+      console.warn('deleteAccount: failed deleting user docs', e);
+    }
+
+    // Attempt to delete Firebase Auth user if it matches the current signed-in user.
+    try {
+      if (auth && auth.currentUser) {
+        const currentUid = auth.currentUser.uid;
+        if (uid && currentUid === uid) {
+          await deleteUser(auth.currentUser);
+        }
+      }
+    } catch (err) {
+      // If the client cannot delete the auth user (e.g. requires recent login), surface a readable error
+      if (err && err.code === 'auth/requires-recent-login') {
+        throw new Error('Please re-authenticate (sign in again) before deleting your account.');
+      }
+      console.warn('deleteAccount: deleting auth user failed (continuing):', err);
+    }
+
+    return { ok: true };
+  } catch (err) {
+    console.error('deleteAccount failed:', err);
+    throw err;
   }
 }
 

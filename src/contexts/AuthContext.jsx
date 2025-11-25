@@ -83,6 +83,28 @@ export function AuthProvider({ children }) {
   const signInWithGoogle = useCallback(() => api.signInWithGoogle(), []);
   const setPasswordForCurrentUser = useCallback((pw) => api.setPasswordForCurrentUser(pw), []);
 
+  // deleteAccount: best-effort delete of user data and auth record
+  const deleteAccount = useCallback(async () => {
+    try {
+      const uid = currentUser?.uid || null;
+      const email = currentUser?.email || null;
+      if (!api || typeof api.deleteAccount !== 'function') throw new Error('deleteAccount not implemented on server/client API');
+      // Call API with uid if available otherwise with email
+      await api.deleteAccount(uid || email);
+      // After deletion, sign out locally
+      try {
+        if (logout && typeof logout === 'function') await logout();
+      } catch (e) {
+        console.warn('deleteAccount: logout after delete failed', e);
+      }
+      try { window.location.href = '/login'; } catch (_) {}
+      return { ok: true };
+    } catch (err) {
+      console.error('deleteAccount failed', err);
+      throw err;
+    }
+  }, [currentUser, logout]);
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
@@ -146,6 +168,6 @@ export function AuthProvider({ children }) {
      };
   }, [logout]);
 
-  const value = { currentUser, loading, sendSignInLink, completeSignIn, loginWithPassword, logout, signInWithGoogle, setPasswordForCurrentUser };
+  const value = { currentUser, loading, sendSignInLink, completeSignIn, loginWithPassword, logout, signInWithGoogle, setPasswordForCurrentUser, deleteAccount };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

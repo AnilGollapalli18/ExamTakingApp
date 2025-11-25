@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useExam } from '../contexts/ExamContext';
 import { examAPI } from '../services/api';
+import * as api from '../services/api';
 import { auth as firebaseAuth } from '../services/firebase';
+import { reauthenticateWithCredential, EmailAuthProvider, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { Play, Clock, BookOpen, Award, TrendingUp } from 'lucide-react';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
 
@@ -38,6 +40,11 @@ const Dashboard = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
   const [passwordMsg, setPasswordMsg] = useState('');
+  // re-auth flow state (used when Firebase requires recent sign-in for sensitive ops)
+  const [reauthRequired, setReauthRequired] = useState(false);
+  const [reauthLoading, setReauthLoading] = useState(false);
+  const [reauthPassword, setReauthPassword] = useState('');
+  const [reauthMessage, setReauthMessage] = useState('');
 
   // Ensure sign-out always awaits the auth signOut and then redirects
   const handleSignOut = async () => {
@@ -57,6 +64,99 @@ const Dashboard = () => {
       return;
     }
     navigate('/login');
+  };
+
+  const handleDeleteClick = async () => {
+    const confirmed = window.confirm('Are you sure you want to permanently delete your account and all your data? This cannot be undone.');
+    if (!confirmed) return;
+    setProfileOpen(false);
+    setLoading(true);
+    setError('');
+    try {
+      // Server-side deletion via Admin SDK: call POST /api/user/delete with Firebase ID token
+      if (!firebaseAuth || !firebaseAuth.currentUser) throw new Error('Not signed in');
+      const idToken = await firebaseAuth.currentUser.getIdToken(/* forceRefresh */ true);
+      const base = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:5000';
+      const resp = await fetch(`${base.replace(/\/$/, '')}/api/user/delete`, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + idToken, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: firebaseAuth.currentUser.email })
+      });
+      if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || `Server returned ${resp.status}`);
+      }
+      // sign out locally
+      try { if (firebaseAuth && typeof firebaseAuth.signOut === 'function') await firebaseAuth.signOut(); } catch (_) {}
+      try { localStorage.clear(); sessionStorage.clear(); } catch (_) {}
+      navigate('/login');
+    } catch (err) {
+      console.error('Delete account failed', err);
+      setError(err?.message || String(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // retry deletion after successful re-authentication
+  const performDeleteAfterReauth = async () => {
+    setReauthLoading(true);
+    setReauthMessage('');
+    try {
+      if (auth && typeof auth.deleteAccount === 'function') {
+        await auth.deleteAccount();
+      } else if (typeof api.deleteAccount === 'function') {
+        await api.deleteAccount(uid || authUser?.email || null);
+        if (auth && typeof auth.logout === 'function') await auth.logout();
+      } else {
+        throw new Error('deleteAccount is not implemented');
+      }
+      try { localStorage.clear(); sessionStorage.clear(); } catch (_) {}
+      setReauthRequired(false);
+      navigate('/login');
+    } catch (err) {
+      console.error('Delete (after reauth) failed', err);
+      setReauthMessage(err?.message || String(err));
+    } finally {
+      setReauthLoading(false);
+    }
+  };
+
+  const reauthWithPassword = async () => {
+    setReauthMessage('');
+    if (!firebaseAuth || !firebaseAuth.currentUser) return setReauthMessage('No authenticated user');
+    if (!reauthPassword) return setReauthMessage('Enter your current password');
+    setReauthLoading(true);
+    try {
+      const cred = EmailAuthProvider.credential(firebaseAuth.currentUser.email, reauthPassword);
+      await reauthenticateWithCredential(firebaseAuth.currentUser, cred);
+      await performDeleteAfterReauth();
+    } catch (err) {
+      console.error('reauthWithPassword failed', err);
+      setReauthMessage(err?.message || String(err));
+    } finally {
+      setReauthLoading(false);
+    }
+  };
+
+  const reauthWithGoogle = async () => {
+    setReauthMessage('');
+    setReauthLoading(true);
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(firebaseAuth, provider);
+      // If popup signed into the same uid, treat as reauth and proceed
+      if (firebaseAuth.currentUser && result?.user && firebaseAuth.currentUser.uid === result.user.uid) {
+        await performDeleteAfterReauth();
+      } else {
+        setReauthMessage('Signed into a different account. Please sign into the same account and try again.');
+      }
+    } catch (err) {
+      console.error('reauthWithGoogle failed', err);
+      setReauthMessage(err?.message || String(err));
+    } finally {
+      setReauthLoading(false);
+    }
   };
 
   /** ---- START REAL EXAM ---- **/
@@ -301,8 +401,14 @@ const Dashboard = () => {
 
                   <div className="border-t pt-3">
                     <button
-                      onClick={handleSignOut}
+                      onClick={handleDeleteClick}
                       className="w-full text-left px-3 py-2 text-red-600 hover:bg-red-50 rounded font-medium text-sm transition-colors"
+                    >
+                      Delete My Account
+                    </button>
+                    <button
+                      onClick={handleSignOut}
+                      className="w-full text-left px-3 py-2 text-red-600 hover:bg-red-50 rounded font-medium text-sm transition-colors mt-2"
                     >
                       Sign Out
                     </button>
@@ -409,6 +515,31 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
+
+        {/* Re-authentication modal (shown when Firebase requires recent login) */}
+        {reauthRequired && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Re-authenticate to delete account</h3>
+              <p className="text-sm text-gray-600 mb-4">For security, please re-authenticate before we permanently delete your account and data.</p>
+              {reauthMessage && <div className="text-sm text-red-600 mb-3">{reauthMessage}</div>}
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs text-gray-500">Sign in with password</label>
+                  <input type="password" value={reauthPassword} onChange={e => setReauthPassword(e.target.value)} placeholder="Enter your current password" className="w-full p-2 border rounded mt-1" />
+                  <div className="flex gap-2 mt-3">
+                    <button onClick={reauthWithPassword} disabled={reauthLoading} className="flex-1 px-3 py-2 bg-blue-600 text-white rounded">{reauthLoading ? 'Working...' : 'Re-auth with Password'}</button>
+                    <button onClick={reauthWithGoogle} disabled={reauthLoading} className="flex-1 px-3 py-2 border rounded">{reauthLoading ? 'Working...' : 'Re-auth with Google'}</button>
+                  </div>
+                </div>
+                <div className="text-sm text-gray-500">Or sign out and sign in again with the same account, then retry deletion.</div>
+                <div className="flex gap-2 mt-4">
+                  <button onClick={() => setReauthRequired(false)} className="flex-1 px-3 py-2 border rounded">Cancel</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

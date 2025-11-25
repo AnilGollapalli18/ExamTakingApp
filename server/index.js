@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import routesExam from "./routes/exam.js";
+import userRoutes from "./routes/user.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -16,6 +17,7 @@ app.use((req, res, next) => {
 
 // mount routes
 app.use("/api/exam", routesExam);
+app.use("/api/user", userRoutes);
 
 // error handler
 app.use((err, req, res, next) => {
