@@ -1,5 +1,9 @@
 {
   "rewrites": [
+    { "source": "/api/(.*)", "destination": "https://your-backend-url.com/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
-  ]
+  ],
+  "env": {
+    "VITE_API_BASE_URL": "@vite_api_base_url"
+  }
 }
