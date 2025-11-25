@@ -39,17 +39,14 @@ export default function Login(props) {
     setStatus("");
 
     try {
-      // Check if email exists in Firebase auth
       const methods = await fetchSignInMethodsForEmail(auth, email);
 
       if (!methods || methods.length === 0) {
-        // Not registered -> Redirect to Register page with prefilled email
         setStatus("Email not found. Redirecting to Sign up...");
         navigate("/register", { state: { email, fromLogin: true } });
         return;
       }
 
-      // Email exists in the system — do NOT send a sign-in link.
       setStatus("Email already registered. Redirecting to dashboard...");
       navigate("/dashboard");
     } catch (err) {
@@ -64,7 +61,6 @@ export default function Login(props) {
     setLoading(true);
     setStatus("");
     try {
-      // Google sign-in: direct provider sign-in; do not send email link
       await googleSignIn();
       navigate("/dashboard");
     } catch (err) {
@@ -74,76 +70,94 @@ export default function Login(props) {
     }
   }
 
-  // small helper: navigate to Register page, pass current email to prefill and mark fromLogin
   const goToRegister = () => {
     navigate("/register", { state: { email, fromLogin: true } });
   };
 
   return (
-    <div className="p-6 max-w-md mx-auto">
-      <h2 className="text-2xl font-bold mb-4">Login</h2>
+    <div className="min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 py-12">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">Welcome Back</h2>
+          <p className="mt-2 text-sm sm:text-base text-gray-600">Sign in to your exam portal account</p>
+        </div>
 
-      <form onSubmit={handleSignIn} className="space-y-4 bg-white p-6 rounded shadow">
-        {/* scrolling notice: sits INSIDE the bordered form, above the Email input */}
-        <div style={{ overflow: "hidden", borderRadius: 6, marginBottom: 8 }}>
-          <style>{`
-            @keyframes marqueeRTL {
-              0% { transform: translateX(100%); }
-              100% { transform: translateX(-100%); }
-            }
-          `}</style>
-          <div style={{ whiteSpace: "nowrap", display: "block" }}>
-            <div
-              aria-live="polite"
-              style={{
-                display: "inline-block",
-                padding: "10px 0",
-                color: "#991b1b",
-                animation: "marqueeRTL 14s linear infinite",
-                willChange: "transform",
-              }}
-            >
-              Note: sometimes you will not receive email links — please sign in using Google if that happens.
+        <form onSubmit={handleSignIn} className="space-y-4 bg-white p-6 sm:p-8 rounded-lg shadow-lg">
+          {/* scrolling notice */}
+          <div style={{ overflow: "hidden", borderRadius: 6, marginBottom: 8 }}>
+            <style>{`
+              @keyframes marqueeRTL {
+                0% { transform: translateX(100%); }
+                100% { transform: translateX(-100%); }
+              }
+            `}</style>
+            <div style={{ whiteSpace: "nowrap", display: "block" }}>
+              <div
+                aria-live="polite"
+                style={{
+                  display: "inline-block",
+                  padding: "8px 0",
+                  color: "#991b1b",
+                  fontSize: "0.875rem",
+                  animation: "marqueeRTL 14s linear infinite",
+                  willChange: "transform",
+                }}
+              >
+                Note: sometimes you will not receive email links — please sign in using Google if that happens.
+              </div>
             </div>
+          </div>
+
+          {status && <div className="text-sm text-red-600 bg-red-50 p-3 rounded">{status}</div>}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="w-full px-4 py-3 sm:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base sm:text-sm"
+              placeholder="you@example.com"
+            />
+          </div>
+
+          <button 
+            type="submit" 
+            disabled={loading} 
+            className="w-full py-3 sm:py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-base sm:text-sm"
+          >
+            {loading ? "Processing..." : "Sign In"}
+          </button>
+        </form>
+
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-300"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-gray-50 text-gray-500">or</span>
           </div>
         </div>
 
-        {status && <div className="text-sm text-red-600">{status}</div>}
-
-        <div>
-          <label className="block text-sm mb-1">Email</label>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="w-full p-2 border rounded"
-            placeholder="you@example.com"
-          />
-        </div>
-
-        <button type="submit" disabled={loading} className="w-full py-2 bg-blue-600 text-white rounded">
-          {loading ? "Processing..." : "Sign in"}
-        </button>
-      </form>
-
-      <div className="mt-4 text-center">or</div>
-
-      <div className="mt-4">
-        <button onClick={handleGoogle} className="w-full py-2 bg-red-600 text-white rounded">
-          Sign in with Google
-        </button>
-      </div>
-
-      <div className="mt-4 text-center text-sm">
-        <span>Don't have an account? </span>
-        <button
-          type="button"
-          onClick={goToRegister}
-          className="text-blue-600 hover:underline"
+        <button 
+          onClick={handleGoogle} 
+          className="w-full py-3 sm:py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 transition-colors text-base sm:text-sm"
+          disabled={loading}
         >
-          Sign up
+          Sign In with Google
         </button>
+
+        <div className="mt-6 text-center text-sm">
+          <span className="text-gray-600">Don't have an account? </span>
+          <button
+            type="button"
+            onClick={goToRegister}
+            className="text-blue-600 hover:underline font-medium"
+          >
+            Sign up
+          </button>
+        </div>
       </div>
     </div>
   );

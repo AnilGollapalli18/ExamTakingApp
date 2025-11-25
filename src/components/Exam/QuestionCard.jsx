@@ -42,29 +42,29 @@ export default function QuestionCard({ question }) {
     d === "easy" ? "bg-green-100 text-green-800" : d === "medium" ? "bg-yellow-100 text-yellow-800" : d === "hard" ? "bg-red-100 text-red-800" : "bg-gray-100 text-gray-800";
 
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <div className="flex justify-between items-start mb-4">
-        <div className="flex gap-2">
-          <span className={`px-3 py-1 rounded-full text-sm font-medium ${getDifficultyColor(difficulty)}`}>
+    <div className="bg-white rounded-lg shadow-lg p-4 sm:p-6">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 sm:gap-4 mb-4">
+        <div className="flex gap-2 flex-wrap">
+          <span className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${getDifficultyColor(difficulty)}`}>
             {(difficulty || "Unknown").charAt(0).toUpperCase() + (difficulty || "Unknown").slice(1)}
           </span>
           {question?.category && (
-            <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">{question.category}</span>
+            <span className="px-2 sm:px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs sm:text-sm font-medium">{question.category}</span>
           )}
         </div>
       </div>
 
-      <h2 className="text-lg font-semibold text-gray-900 mb-4 leading-relaxed">{question?.question}</h2>
+      <h2 className="text-base sm:text-lg lg:text-xl font-semibold text-gray-900 mb-4 leading-relaxed">{question?.question}</h2>
 
-      <div className="space-y-3">
+      <div className="space-y-2 sm:space-y-3">
         {opts.map((opt, idx) => {
           const optKey = opt?.id ?? idx;
           const isSelected = selectedIndex === idx;
           return (
             <label
               key={optKey}
-              className={`flex items-start p-3 border rounded-lg cursor-pointer transition-colors hover:bg-gray-50 ${
-                isSelected ? "border-blue-500 bg-blue-50" : "border-gray-200"
+              className={`flex items-start p-3 sm:p-4 border rounded-lg cursor-pointer transition-all hover:bg-gray-50 ${
+                isSelected ? "border-blue-500 bg-blue-50 shadow-sm" : "border-gray-200"
               }`}
             >
               <input
@@ -77,15 +77,15 @@ export default function QuestionCard({ question }) {
                 aria-label={`Option ${idx + 1}`}
               />
               <div
-                className={`flex items-center justify-center w-6 h-6 rounded-full mr-4 mt-1 flex-shrink-0 border-2 ${
+                className={`flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6 rounded-full mr-3 sm:mr-4 mt-0.5 flex-shrink-0 border-2 transition-all ${
                   isSelected ? "border-blue-500 bg-blue-500" : "border-gray-300 bg-white"
                 }`}
                 aria-hidden
               >
-                {isSelected && <div className="w-3 h-3 rounded-full bg-white" />}
+                {isSelected && <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-white" />}
               </div>
 
-              <div className="text-sm font-medium text-gray-800 select-none">
+              <div className="text-sm sm:text-base font-medium text-gray-800 select-none leading-snug">
                 <span className="mr-2 font-semibold">{String.fromCharCode(65 + idx)}.</span>
                 <span>{opt.text}</span>
               </div>

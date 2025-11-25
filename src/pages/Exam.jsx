@@ -286,107 +286,141 @@ export default function ExamPage() {
   };
 
   return (
-    <div style={{ display: "flex", gap: 20, padding: 20 }}>
-      <div style={{ flex: 1, background: "#fff", padding: 20, borderRadius: 8, boxShadow: "0 0 8px rgba(0,0,0,0.05)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              <button
-                onClick={goPrev}
-                disabled={currentIndex === 0}
-                style={{
-                  border: "1px solid #d1d5db",
-                  padding: "6px 10px",
-                  borderRadius: 6,
-                  background: currentIndex === 0 ? "#f9fafb" : "#ffffff",
-                  cursor: currentIndex === 0 ? "not-allowed" : "pointer",
-                  color: "#111827",
-                }}
-              >
-                Prev
-              </button>
-              <button
-                onClick={goNext}
-                disabled={currentIndex === questions.length - 1}
-                style={{
-                  border: "1px solid #d1d5db",
-                  padding: "6px 10px",
-                  borderRadius: 6,
-                  background: currentIndex === questions.length - 1 ? "#f9fafb" : "#ffffff",
-                  cursor: currentIndex === questions.length - 1 ? "not-allowed" : "pointer",
-                  color: "#111827",
-                }}
-              >
-                Next
-              </button>
-            </div>
+    <div style={{ display: "flex", flexDirection: window.innerWidth < 768 ? "column" : "row", gap: 16, padding: "12px sm:20px", minHeight: "100vh", backgroundColor: "#f9fafb" }}>
+      {/* Main Question Area */}
+      <div style={{ flex: 1, background: "#fff", padding: "16px", borderRadius: 8, boxShadow: "0 0 8px rgba(0,0,0,0.05)" }} className="sm:p-6 lg:p-8">
+        {/* Controls Header - Mobile Stack */}
+        <div style={{ display: "flex", flexDirection: window.innerWidth < 640 ? "column-reverse" : "row", justifyContent: "space-between", alignItems: window.innerWidth < 640 ? "stretch" : "center", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
+          {/* Navigation Buttons */}
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }} className="w-full sm:w-auto">
+            <button
+              onClick={goPrev}
+              disabled={currentIndex === 0}
+              className="flex-1 sm:flex-none px-3 py-2 border border-gray-300 rounded text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              ← Prev
+            </button>
+            <button
+              onClick={goNext}
+              disabled={currentIndex === questions.length - 1}
+              className="flex-1 sm:flex-none px-3 py-2 border border-gray-300 rounded text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Next →
+            </button>
           </div>
-          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <div style={{ fontFamily: "monospace" }}>{formatTime(timeRemaining)}</div>
+
+          {/* Timer and Actions */}
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: window.innerWidth < 640 ? "space-between" : "flex-end" }} className="w-full sm:w-auto">
+            <div style={{ fontFamily: "monospace", fontSize: "18px", fontWeight: "bold", padding: "6px 12px", backgroundColor: timeRemaining && timeRemaining < 300 ? "#fee2e2" : "#f3f4f6", borderRadius: 6, color: timeRemaining && timeRemaining < 300 ? "#b91c1c" : "#111827" }}>
+              {formatTime(timeRemaining)}
+            </div>
             <button
               onClick={() => toggleReview(currentQ.id)}
+              className="px-3 py-2 border border-gray-300 rounded text-sm font-medium transition-colors"
               style={{
-                border: "1px solid #d1d5db",
-                padding: "6px 10px",
-                borderRadius: 6,
-                background: reviewMap[currentQ.id] ? "#fecaca" : "#ffffff",
-                cursor: "pointer",
+                backgroundColor: reviewMap[currentQ.id] ? "#fecaca" : "#ffffff",
                 color: reviewMap[currentQ.id] ? "#7f1d1d" : "#111827",
+                cursor: "pointer"
               }}
             >
-              {reviewMap[currentQ.id] ? "Unmark Review" : "Mark for Review"}
+              {reviewMap[currentQ.id] ? "Unmark" : "Mark"}
             </button>
-            <button onClick={() => handleSubmit(false)} disabled={autoSubmitting} style={{ background: "#16a34a", color: "#fff", padding: "8px 12px", borderRadius: 6 }}>
-              {autoSubmitting ? "Submitting..." : "Submit Exam"}
+            <button 
+              onClick={() => handleSubmit(false)} 
+              disabled={autoSubmitting} 
+              className="px-3 py-2 bg-green-600 text-white rounded text-sm font-medium hover:bg-green-700 disabled:opacity-50 transition-colors whitespace-nowrap"
+            >
+              {autoSubmitting ? "Submitting..." : "Submit"}
             </button>
           </div>
         </div>
 
-        <h3 style={{ marginTop: 0 }}>Question {currentIndex + 1} / {questions.length}</h3>
-        <div style={{ margin: "12px 0 18px", fontSize: 18 }}>{currentQ.question}</div>
+        {/* Question Number */}
+        <h3 style={{ marginTop: 0, fontSize: "14px", color: "#6b7280", fontWeight: "500" }}>Question {currentIndex + 1} / {questions.length}</h3>
 
-        <div>
+        {/* Question Text */}
+        <div style={{ margin: "16px 0 24px", fontSize: "16px", lineHeight: "1.6", color: "#111827", fontWeight: "500" }} className="sm:text-lg">
+          {currentQ.question}
+        </div>
+
+        {/* Options */}
+        <div className="space-y-3 sm:space-y-4">
           {opts.map((opt, idx) => {
             const display = opt && typeof opt === "object" ? opt.text ?? opt.label ?? String(opt) : String(opt);
             const checked = Array.isArray(userSel) ? userSel.includes(idx) : userSel === idx;
             return (
-              <label key={idx} style={{ display: "block", padding: 8, cursor: "pointer", borderRadius: 6, background: checked ? "#f0f9ff" : "transparent", marginBottom: 6 }}>
+              <label 
+                key={idx} 
+                style={{ 
+                  display: "flex", 
+                  padding: "12px", 
+                  cursor: "pointer", 
+                  borderRadius: 6, 
+                  background: checked ? "#f0f9ff" : "transparent", 
+                  border: `2px solid ${checked ? "#3b82f6" : "#e5e7eb"}`,
+                  transition: "all 0.2s"
+                }}
+                className="hover:bg-gray-50"
+              >
                 <input
                   type={isMultiple ? "checkbox" : "radio"}
                   name={`q_${currentQ.id}`}
                   checked={!!checked}
                   onChange={() => selectOption(currentQ.id, idx, isMultiple)}
-                  style={{ marginRight: 10 }}
+                  style={{ marginRight: 12, cursor: "pointer", minWidth: "20px", minHeight: "20px" }}
+                  className="sm:mt-1"
                 />
-                <span>{display}</span>
+                <span style={{ fontSize: "14px", color: "#111827" }} className="sm:text-base">
+                  <strong>{String.fromCharCode(65 + idx)}.</strong> {display}
+                </span>
               </label>
             );
           })}
         </div>
       </div>
 
-      <div style={{ width: 180 }}>
-        <div style={{ marginBottom: 8, fontWeight: 600 }}>Questions</div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+      {/* Question Navigation Sidebar - Hidden on Mobile */}
+      <div style={{ width: window.innerWidth < 768 ? "100%" : 160, minHeight: "auto" }} className="hidden md:block">
+        <div style={{ marginBottom: 8, fontWeight: 600, fontSize: "14px", color: "#111827" }}>Questions</div>
+        <div style={{ display: "grid", gridTemplateColumns: window.innerWidth < 768 ? "repeat(auto-fill, minmax(50px, 1fr))" : "repeat(4, 1fr)", gap: 8 }}>
           {questions.map((q, i) => (
             <button
               key={q.id ?? i}
               onClick={() => jumpTo(i)}
               title={q.question}
-              style={{ padding: 8, borderRadius: 6, textAlign: "center", cursor: "pointer", ...navTileStyle(q) }}
+              style={{ padding: 8, borderRadius: 6, textAlign: "center", cursor: "pointer", fontSize: "12px", fontWeight: "600", ...navTileStyle(q) }}
+              className="hover:shadow-md transition-shadow"
             >
               {i + 1}
             </button>
           ))}
         </div>
 
-        <div style={{ marginTop: 12, fontSize: 13 }}>
+        <div style={{ marginTop: 16, fontSize: 13 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+            <span style={{ display: "inline-block", width: 12, height: 12, background: "#d1fae5", borderRadius: 2 }} /> Answered
+          </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ display: "inline-block", width: 12, height: 12, background: "#d1fae5" }} /> Answered
+            <span style={{ display: "inline-block", width: 12, height: 12, background: "#fee2e2", borderRadius: 2 }} /> Review
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-            <span style={{ display: "inline-block", width: 12, height: 12, background: "#fee2e2" }} /> Marked for review
-          </div>
+        </div>
+      </div>
+
+      {/* Mobile Question Navigation - Show on Mobile */}
+      <div style={{ width: "100%", marginTop: 16 }} className="md:hidden">
+        <div style={{ marginBottom: 8, fontWeight: 600, fontSize: "14px", color: "#111827" }}>All Questions</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(48px, 1fr))", gap: 6 }}>
+          {questions.map((q, i) => (
+            <button
+              key={q.id ?? i}
+              onClick={() => jumpTo(i)}
+              title={q.question}
+              style={{ padding: 8, borderRadius: 6, textAlign: "center", cursor: "pointer", fontSize: "12px", fontWeight: "600", ...navTileStyle(q) }}
+              className="hover:shadow-md transition-shadow"
+            >
+              {i + 1}
+            </button>
+          ))}
         </div>
       </div>
     </div>
